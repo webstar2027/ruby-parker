@@ -4,18 +4,13 @@
   "private": true,
   "description": "Ruby Parker creator membership site",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": "22.x"
-  },
+  "scripts": {"start":"node server.js"},
+  "engines": {"node": "22.x"},
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "bcryptjs": "^3.0.2",
-    "better-sqlite3": "^11.10.0",
-    "cookie-session": "^2.1.0",
-    "express": "^5.1.0",
-    "multer": "^2.0.2"
+    "bcryptjs":"^3.0.2",
+    "better-sqlite3":"^11.10.0",
+    "cookie-session":"^2.1.0",
+    "express":"^5.1.0",
+    "multer":"^2.0.2"
   }
 }
