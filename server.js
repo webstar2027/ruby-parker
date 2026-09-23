@@ -10,12 +10,13 @@ const crypto = require('crypto');
 
 const app = express();
 // Render terminates HTTPS at its proxy. Trust the proxy so secure cookies work correctly.
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 const PORT = Number(process.env.PORT || 10000);
 const SITE_NAME = process.env.SITE_NAME || 'Ruby Parker';
 const BTC_ADDRESS = process.env.BTC_ADDRESS || '';
 const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY || '';
 const BASE_URL = process.env.BASE_URL || '';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const dataDir = path.join(__dirname, 'data');
 const uploadDir = path.join(__dirname, 'private', 'uploads');
@@ -73,11 +74,13 @@ if (adminEmail && adminPassword) {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieSession({
-  name: 'ruby_parker_session',
+  name: 'ruby_parker_session_v2',
   keys: [process.env.SESSION_SECRET || 'dev-only-change-this-secret'],
   httpOnly: true,
   sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  secure: IS_PRODUCTION,
+  path: '/',
+  overwrite: true,
   maxAge: 1000 * 60 * 60 * 24 * 30
 }));
 app.use('/public', express.static(path.join(__dirname, 'public')));
@@ -119,11 +122,32 @@ app.post('/register',(req,res)=>{
  if(!email || password.length<8) return res.status(400).send(page('Register',flash('Use a valid email and a password of at least 8 characters.')+'<a href="/register">Try again</a>',req));
  try { const info=db.prepare('INSERT INTO users (email,password_hash,created_at) VALUES (?,?,?)').run(email,bcrypt.hashSync(password,12),new Date().toISOString()); req.session.userId=info.lastInsertRowid; res.redirect('/join'); } catch { res.status(409).send(page('Register',flash('That email is already registered.')+'<a href="/login">Log in</a>',req)); }
 });
-app.get('/login',(req,res)=>res.send(page('Login',`<div class="card narrow"><h1>Member login</h1><form method="post"><label>Email<input name="email" type="email" required></label><label>Password<input name="password" type="password" required></label><button class="button">Log in</button></form><p>New here? <a href="/register">Create an account</a></p></div>`,req)));
-app.post('/login',(req,res)=>{const u=db.prepare('SELECT * FROM users WHERE email=?').get(String(req.body.email||'').trim().toLowerCase()); if(!u||!bcrypt.compareSync(String(req.body.password||''),u.password_hash)) return res.status(401).send(page('Login',flash('Invalid email or password.')+'<a href="/login">Try again</a>',req)); req.session.userId=u.id; res.redirect(u.is_admin?'/admin':'/join');});
+app.get('/login',(req,res)=>{
+ const next=typeof req.query.next==='string' && req.query.next.startsWith('/') ? req.query.next : '';
+ const paid=req.query.paid==='1';
+ const html=`<div class="card narrow">${paid?'<div class="notice">Payment was successful. Log in to continue.</div>':''}<h1>Member login</h1><form method="post"><input type="hidden" name="next" value="${esc(next)}"><label>Email<input name="email" type="email" autocomplete="email" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><button class="button">Log in</button></form><p>New here? <a href="/register">Create an account</a></p></div>`;
+ res.set('Cache-Control','no-store');
+ res.send(page('Login',html,req));
+});
+app.post('/login',(req,res)=>{
+ const u=db.prepare('SELECT * FROM users WHERE email=?').get(String(req.body.email||'').trim().toLowerCase());
+ if(!u||!bcrypt.compareSync(String(req.body.password||''),u.password_hash)) return res.status(401).send(page('Login',flash('Invalid email or password.')+'<a href="/login">Try again</a>',req));
+ req.session.userId=u.id;
+ const next=typeof req.body.next==='string' && req.body.next.startsWith('/') ? req.body.next : '';
+ res.set('Cache-Control','no-store');
+ res.redirect(u.is_admin?'/admin':(next||'/join'));
+});
 app.post('/logout',(req,res)=>{req.session=null;res.redirect('/')});
 
-app.get('/join',(req,res)=>res.send(page('Join',`<div class="card"><span class="eyebrow">MEMBERSHIP</span><h1>$10 for 30 days</h1><p>Choose Paystack for online payment, or submit a Bitcoin transaction for admin verification.</p><div class="pay-grid"><section><h2>Pay with Paystack</h2><p>Secure card/bank payment through Paystack.</p>${req.session.userId?`<button class="button" onclick="pay()">Pay $10 with Paystack</button>`:'<a class="button" href="/login">Log in to pay</a>'}</section><section><h2>Pay with Bitcoin</h2><p>Send the $10 equivalent in BTC to:</p><code>${esc(BTC_ADDRESS)}</code><p class="small">After sending, submit the transaction hash for review. Membership is activated only after verification.</p>${req.session.userId?`<form method="post" action="/btc-submit"><input name="tx_hash" placeholder="Bitcoin transaction hash" required><input name="amount_note" placeholder="Amount sent (optional)"><button class="button">Submit BTC payment</button></form>`:'<a href="/login">Log in to submit payment</a>'}</section></div></div><script>async function pay(){const r=await fetch('/api/paystack/init',{method:'POST'});const j=await r.json();if(j.authorization_url)location.href=j.authorization_url;else alert(j.error||'Paystack is not configured yet.');}</script>`,req)));
+app.get('/join',(req,res)=>{
+ const currentUser=user(req);
+ const payUi=currentUser ? `<button class="button" id="paystack-btn" onclick="pay()">Pay $10 with Paystack</button>` : '<a class="button" href="/login?next=/join">Log in to pay</a>';
+ const btcUi=currentUser ? `<form method="post" action="/btc-submit"><input name="tx_hash" placeholder="Bitcoin transaction hash" required><input name="amount_note" placeholder="Amount sent (optional)"><button class="button">Submit BTC payment</button></form>` : '<a href="/login?next=/join">Log in to submit payment</a>';
+ const paidMessage=req.query.paid==='1' ? '<div class="notice">Payment verified. Your 30-day membership is active.</div>' : '';
+ const html=`<div class="card">${paidMessage}<span class="eyebrow">MEMBERSHIP</span><h1>$10 for 30 days</h1><p>Choose Paystack for online payment, or submit a Bitcoin transaction for admin verification.</p><div class="pay-grid"><section><h2>Pay with Paystack</h2><p>Secure card/bank payment through Paystack.</p>${payUi}</section><section><h2>Pay with Bitcoin</h2><p>Send the $10 equivalent in BTC to:</p><code>${esc(BTC_ADDRESS)}</code><p class="small">After sending, submit the transaction hash for review. Membership is activated only after verification.</p>${btcUi}</section></div></div><script>async function pay(){const b=document.getElementById('paystack-btn');if(b){b.disabled=true;b.textContent='Connecting to Paystack…';}try{const r=await fetch('/api/paystack/init',{method:'POST',headers:{'Accept':'application/json'}});const j=await r.json();if(j.authorization_url){window.location.assign(j.authorization_url);}else{alert(j.error||'Paystack could not start the payment.');if(b){b.disabled=false;b.textContent='Pay $10 with Paystack';}}}catch(e){alert('Could not connect to the payment service.');if(b){b.disabled=false;b.textContent='Pay $10 with Paystack';}}}</script>`;
+ res.set('Cache-Control','no-store');
+ res.send(page('Join',html,req));
+});
 app.post('/btc-submit',requireLogin,(req,res)=>{const tx=String(req.body.tx_hash||'').trim();if(tx.length<20)return res.status(400).send(page('Bitcoin',flash('Please enter the transaction hash.'),req));db.prepare('INSERT INTO btc_submissions (user_id,tx_hash,amount_note,created_at) VALUES (?,?,?,?)').run(req.currentUser.id,tx,String(req.body.amount_note||''),new Date().toISOString());res.send(page('Bitcoin submitted',`<div class="card"><h1>Payment submitted</h1><p>Your transaction was submitted for review. Membership will activate after the transaction is verified.</p><a class="button" href="/">Back home</a></div>`,req));});
 
 app.post('/api/paystack/init',requireLogin,async(req,res)=>{
@@ -132,7 +156,8 @@ app.post('/api/paystack/init',requireLogin,async(req,res)=>{
  const currency=String(process.env.PAYSTACK_CURRENCY||'USD').toUpperCase();
  const amount=currency==='USD' ? 1000 : Number(process.env.PAYSTACK_AMOUNT||0);
  if(!amount) return res.status(500).json({error:'PAYSTACK_AMOUNT is not configured for the selected currency.'});
- const callbackUrl=`${BASE_URL || `${req.protocol}://${req.get('host')}`}/paystack/callback`;
+ const callbackBase = BASE_URL || (IS_PRODUCTION ? `https://${req.get('host')}` : `${req.protocol}://${req.get('host')}`);
+ const callbackUrl=`${callbackBase.replace(/\/$/,'')}/paystack/callback`;
  try {
    const r=await fetch('https://api.paystack.co/transaction/initialize',{
      method:'POST',
@@ -148,24 +173,26 @@ app.post('/api/paystack/init',requireLogin,async(req,res)=>{
    res.status(500).json({error:'Payment service error'});
  }
 });
-app.get('/paystack/callback',requireLogin,async(req,res)=>{
+app.get('/paystack/callback',async(req,res)=>{
  const ref=String(req.query.reference||'').trim();
  if(!ref)return res.redirect('/join');
  if(!process.env.PAYSTACK_SECRET_KEY)return res.status(503).send(page('Payment',flash('Paystack is not configured on the server.'),req));
  try {
    const r=await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(ref)}`,{headers:{Authorization:`Bearer ${process.env.PAYSTACK_SECRET_KEY}`}});
    const j=await r.json();
-   const p=db.prepare('SELECT * FROM payments WHERE reference=? AND user_id=?').get(ref,req.currentUser.id);
+   const p=db.prepare('SELECT * FROM payments WHERE reference=?').get(ref);
    const expectedAmount=p ? Number(p.amount) : 1000;
    const expectedCurrency=String(process.env.PAYSTACK_CURRENCY||'USD').toUpperCase();
-   if(j.status&&j.data&&j.data.status==='success'&&Number(j.data.amount)>=expectedAmount&&String(j.data.currency||'').toUpperCase()===expectedCurrency){
-     if(p && p.status!=='verified'){
+   if(p && j.status&&j.data&&j.data.status==='success'&&Number(j.data.amount)>=expectedAmount&&String(j.data.currency||'').toUpperCase()===expectedCurrency){
+     if(p.status!=='verified'){
        const exp=new Date();
        exp.setDate(exp.getDate()+30);
-       db.prepare('UPDATE users SET membership_expires_at=? WHERE id=?').run(exp.toISOString(),req.currentUser.id);
+       db.prepare('UPDATE users SET membership_expires_at=? WHERE id=?').run(exp.toISOString(),p.user_id);
        db.prepare('UPDATE payments SET status=? WHERE id=?').run('verified',p.id);
      }
-     return res.redirect('/feed');
+     const loggedInUser=user(req);
+     if(loggedInUser && Number(loggedInUser.id)===Number(p.user_id)) return res.redirect('/feed');
+     return res.redirect('/login?next=/join&paid=1');
    }
    console.error('Paystack verification failed:', j.message || j.data);
    res.status(400).send(page('Payment',flash('Payment was not verified as successful. Please contact support if you were charged.'),req));
