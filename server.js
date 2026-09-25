@@ -186,7 +186,7 @@ app.get('/health', async (_req, res) => {
 app.get('/', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
-    res.send(page('Home', `<section class="hero"><div><span class="eyebrow">PRIVATE CREATOR MEMBERSHIP</span><h1>Welcome to ${esc(SITE_NAME)}.</h1><p>Exclusive photos, videos, updates and members-only posts in one private space.</p><div class="actions"><a class="button" href="/join">Join for ${esc(PAYSTACK_DISPLAY_PRICE)}</a><a class="button ghost" href="/login">Member login</a></div></div><div class="hero-card"><div class="orb">RP</div><p>30 days of private access</p><strong>${esc(PAYSTACK_DISPLAY_PRICE)}</strong></div></section>`, req));
+    res.send(page('Home', `<section class="hero"><div><span class="eyebrow">PRIVATE CREATOR MEMBERSHIP</span><h1>Welcome to ${esc(SITE_NAME)}.</h1><p>Exclusive photos, videos, updates and members-only posts in one private space.</p><div class="actions"><a class="button" href="/join">Join for ${esc(PAYSTACK_DISPLAY_PRICE)}</a><a class="button ghost" href="/login">Member login</a></div></div><div class="hero-card"><img class="hero-logo" src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker logo"><p>30 days of private access</p><strong>${esc(PAYSTACK_DISPLAY_PRICE)}</strong></div></section>`, req));
   } catch (e) { next(e); }
 });
 
