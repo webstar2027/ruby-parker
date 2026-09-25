@@ -4,3 +4,7 @@
 /* Ruby Parker logo */
 .brand { display:flex; align-items:center; }
 .brand img { height:55px; width:auto; display:block; border-radius:10px; }
+
+
+/* Website logo in membership card */
+.hero-logo{display:block;width:190px;height:190px;margin:auto;object-fit:cover;border-radius:28px;}
