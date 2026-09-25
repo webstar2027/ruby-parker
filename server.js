@@ -61,7 +61,26 @@ function page(title, body, req) {
   const nav = u
     ? `<a href="/feed">Feed</a>${u.is_admin ? '<a href="/admin">Admin</a>' : ''}<form method="post" action="/logout" class="inline"><button>Log out</button></form>`
     : `<a href="/login">Log in</a><a class="pill" href="/join">Join</a>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · ${esc(SITE_NAME)}</title><link rel="stylesheet" href="/public/style.css"></head><body><header><a class="brand" href="/">${esc(SITE_NAME)}</a><nav>${nav}</nav></header><main>${body}</main><footer>© ${new Date().getFullYear()} ${esc(SITE_NAME)}</footer></body></html>`;
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(title)} · ${esc(SITE_NAME)}</title>
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker">
+    </a>
+    <nav>${nav}</nav>
+  </header>
+  <main>${body}</main>
+  <footer>© ${new Date().getFullYear()} ${esc(SITE_NAME)}</footer>
+</body>
+</html>`;
 }
 
 function flash(msg) {
