@@ -16,20 +16,11 @@ const PORT = Number(process.env.PORT || 10000);
 const SITE_NAME = process.env.SITE_NAME || 'Ruby Parker';
 const BTC_ADDRESS = process.env.BTC_ADDRESS || '';
 const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || '';
-const MEMBERSHIP_USD = 10;
-const FLW_GBP_PER_USD = Number(process.env.FLW_GBP_PER_USD || 0.75);
-const FLW_EUR_PER_USD = Number(process.env.FLW_EUR_PER_USD || 0.85);
-const SUPPORTED_CURRENCIES = ['USD', 'GBP', 'EUR'];
-function membershipAmount(currency) {
-  const c = String(currency || 'USD').toUpperCase();
-  const rates = { USD: 1, GBP: FLW_GBP_PER_USD, EUR: FLW_EUR_PER_USD };
-  if (!SUPPORTED_CURRENCIES.includes(c)) return null;
-  return Math.round(MEMBERSHIP_USD * rates[c] * 100);
-}
-function membershipDisplay(currency) {
-  const amount = membershipAmount(currency);
-  return amount == null ? '' : money(amount, currency);
-}
+const FLW_USD_AMOUNT = Number(process.env.FLW_USD_AMOUNT || 10);
+const FLW_GBP_FALLBACK = Number(process.env.FLW_GBP_FALLBACK || 8.0);
+const FLW_EUR_FALLBACK = Number(process.env.FLW_EUR_FALLBACK || 8.5);
+const FLW_CURRENCIES = ['USD', 'GBP', 'EUR'];
+const FLW_DISPLAY_PRICE = '$10 USD equivalent';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || '';
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || 'ruby-content';
@@ -110,7 +101,7 @@ function page(title, body, req) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#0d0b10">
   <meta name="description" content="Private Ruby Parker creator membership.">
   <title>${esc(title)} · ${esc(SITE_NAME)}</title>
   <link rel="stylesheet" href="/public/style.css">
@@ -119,27 +110,11 @@ function page(title, body, req) {
   <header>
     <a class="brand" href="/"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></a>
     <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')">☰</button>
-    <nav>${nav}<button class="theme-trigger" type="button" onclick="toggleThemePanel()" aria-label="Choose theme">◐ Theme</button></nav>
+    <nav>${nav}</nav>
   </header>
   <main>${body}</main>
   <footer><strong>${esc(SITE_NAME)}</strong><span>Private creator membership</span><span>© ${new Date().getFullYear()}</span></footer>
-  <div id="theme-panel" class="theme-panel" aria-hidden="true"><div class="theme-panel-inner"><div><strong>Theme</strong><small>Choose how RubyParker looks on your device.</small></div><button type="button" data-theme="light">☀️ Light</button><button type="button" data-theme="dark">🌙 Dark</button><button type="button" data-theme="system">🖥️ System</button></div></div>
   <script>
-    (function(){
-      const key='rubyparker-theme';
-      function applyTheme(value){
-        const v=['light','dark','system'].includes(value)?value:'light';
-        document.documentElement.dataset.theme=v;
-        localStorage.setItem(key,v);
-        document.querySelectorAll('[data-theme]').forEach(b=>b.classList.toggle('selected',b.dataset.theme===v));
-      }
-      applyTheme(localStorage.getItem(key)||'light');
-      window.toggleThemePanel=function(){
-        const p=document.getElementById('theme-panel'); if(p) { p.classList.toggle('open'); p.setAttribute('aria-hidden',p.classList.contains('open')?'false':'true'); }
-      };
-      document.querySelectorAll('[data-theme]').forEach(b=>b.addEventListener('click',()=>{applyTheme(b.dataset.theme);toggleThemePanel();}));
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if((localStorage.getItem(key)||'light')==='system') applyTheme('system');});
-    })();
     document.addEventListener('click', function(e){
       const img = e.target.closest('.lightbox-trigger');
       if (!img) return;
@@ -253,10 +228,10 @@ app.get('/', async (req, res, next) => {
         <span class="eyebrow">PRIVATE CREATOR MEMBERSHIP</span>
         <h1>Welcome to ${esc(SITE_NAME)}.</h1>
         <p class="lead">A private space for exclusive photos, videos, updates and members-only content.</p>
-        <div class="actions"><a class="button" href="/join">Join for ${esc(membershipDisplay('USD'))}</a>${accountButton}</div>
+        <div class="actions"><a class="button" href="/join">Join for ${esc(FLW_DISPLAY_PRICE)}</a>${accountButton}</div>
         <div class="trust-row"><span>🔒 Private members area</span><span>📱 Mobile friendly</span><span>💳 Secure checkout</span></div>
       </div>
-      <div class="hero-card"><img class="hero-logo" src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker logo"><p>30 days of private access</p><strong>${esc(membershipDisplay('USD'))}</strong></div>
+      <div class="hero-card"><img class="hero-logo" src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker logo"><p>30 days of private access</p><strong>${esc(FLW_DISPLAY_PRICE)}</strong></div>
     </section>
     <section class="feature-grid">
       <div class="feature"><span>📸</span><h3>Exclusive content</h3><p>Private posts available to active members.</p></div>
@@ -323,7 +298,7 @@ app.get('/account', requireLogin, async (req, res, next) => {
     ]);
     if (paymentError) throw paymentError;
     if (btcError) throw btcError;
-    const paymentsHtml = (payments || []).map(p => `<div class="row"><span><strong>${esc(p.provider === 'flutterwave' ? 'Flutterwave' : p.provider)}</strong><br><small>${formatDate(p.created_at)}</small></span><span>${esc(money(p.amount, p.currency))}<br><small>${esc(p.status)}</small></span></div>`).join('') || '<p>No payment records yet.</p>';
+    const paymentsHtml = (payments || []).map(p => `<div class="row"><span><strong>${esc(p.provider === 'paystack' ? 'Previous payment' : p.provider)}</strong><br><small>${formatDate(p.created_at)}</small></span><span>${esc(money(p.amount, p.currency))}<br><small>${esc(p.status)}</small></span></div>`).join('') || '<p>No payment records yet.</p>';
     const btcHtml = (btc || []).map(p => `<div class="row"><span><strong>Bitcoin</strong><br><small>${esc(p.tx_hash.slice(0, 16))}… · ${formatDate(p.created_at)}</small></span><span>${esc(p.status)}</span></div>`).join('') || '<p>No Bitcoin submissions yet.</p>';
     const memberAction = activeMember(req.currentUser) ? `<a class="button" href="/feed">Open private feed</a>` : `<a class="button" href="/join">Activate membership</a>`;
     const expiry = req.currentUser.membership_expires_at ? new Date(req.currentUser.membership_expires_at).toLocaleString() : 'Not active';
@@ -346,18 +321,9 @@ app.get('/join', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
     const u = req.currentUser;
-    const payButton = u ? `<button class="button" onclick="payFlutterwave(this)">Continue to Flutterwave</button>` : '<a class="button" href="/login">Log in to pay</a>';
-    const btcForm = u ? `<form method="post" action="/btc-submit">${csrfField(req)}<input name="tx_hash" placeholder="Bitcoin transaction hash" required><input name="amount_note" placeholder="Amount sent (optional)"><button class="button ghost">Submit BTC payment</button></form>` : '<a href="/login">Log in to submit payment</a>';
-    const currencyButtons = SUPPORTED_CURRENCIES.map(c => `<button type="button" class="currency-choice ${c==='USD'?'selected':''}" data-currency="${c}" onclick="chooseCurrency('${c}')"><strong>${c}</strong><span id="price-${c}">${esc(membershipDisplay(c))}</span></button>`).join('');
-    const body = `<section class="membership-hero"><div><span class="eyebrow">RUBY PARKER MEMBERSHIP</span><h1>Private access, beautifully simple.</h1><p class="lead">Get 30 days of exclusive photos, videos and private community access.</p><div class="price-line"><strong id="selected-price">${esc(membershipDisplay('USD'))}</strong><span>for 30 days</span></div></div><div class="membership-logo"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></div></section>
-      <div class="currency-picker card"><div><h2>Choose your currency</h2><p>Membership is priced at the equivalent of US$10. Choose one of the available checkout currencies.</p></div><div class="currency-grid">${currencyButtons}</div></div>
-      <div class="pay-grid"><section class="card payment-card"><div class="payment-icon">💳</div><span class="eyebrow">ONLINE CHECKOUT</span><h2>Pay securely with Flutterwave</h2><p>Your selected currency will be used at checkout.</p>${payButton}</section><section class="card payment-card"><div class="payment-icon">₿</div><span class="eyebrow">CRYPTO</span><h2>Pay with Bitcoin</h2><p>Send the $10 USD equivalent in BTC to this address, then submit the transaction hash.</p><code>${esc(BTC_ADDRESS)}</code><p class="small">Bitcoin payments are manually verified by the site admin.</p>${btcForm}</section></div>
-      <div class="card info-card"><h2>Membership includes</h2><div class="check-grid"><span>✓ 30 days of private access</span><span>✓ Exclusive photos and videos</span><span>✓ Private member feed</span><span>✓ Likes and comments</span></div></div>
-      <script>
-        let selectedCurrency='USD';
-        function chooseCurrency(c){ selectedCurrency=c; document.querySelectorAll('.currency-choice').forEach(b=>b.classList.toggle('selected',b.dataset.currency===c)); document.getElementById('selected-price').textContent=document.getElementById('price-'+c).textContent; }
-        async function payFlutterwave(button){button.disabled=true;button.textContent='Connecting to Flutterwave…';try{const r=await fetch('/api/flutterwave/init',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':${JSON.stringify(csrfToken(req))}},body:JSON.stringify({currency:selectedCurrency})});const j=await r.json();if(j.authorization_url)location.href=j.authorization_url;else alert(j.error||'Flutterwave is not configured yet.');}catch(e){alert('Could not connect to the payment service.');}finally{button.disabled=false;button.textContent='Continue to Flutterwave';}}
-      </script>`;
+    const payButton = u ? `<div class="currency-picker"><label for="currency">Currency</label><select id="currency"><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select><p id="price" class="price-preview">$10.00 USD</p><button class="button" onclick="pay(this)">Pay with Flutterwave</button></div>` : '<a class="button" href="/login">Log in to pay</a>';
+    const btcForm = u ? `<form method="post" action="/btc-submit">${csrfField(req)}<input name="tx_hash" placeholder="Bitcoin transaction hash" required><input name="amount_note" placeholder="Amount sent (optional)"><button class="button">Submit BTC payment</button></form>` : '<a href="/login">Log in to submit payment</a>';
+    const body = `<div class="card"><span class="eyebrow">MEMBERSHIP</span><h1>${esc(FLW_DISPLAY_PRICE)} for 30 days</h1><p>Choose a payment method below. Your membership is activated only after successful verification.</p><div class="pay-grid"><section><div class="payment-icon">💳</div><h2>Pay with Flutterwave</h2><p>Secure online checkout. Choose USD, GBP, or EUR.</p>${payButton}</section><section><div class="payment-icon">₿</div><h2>Pay with Bitcoin</h2><p>Send the $10 equivalent in BTC to this address, then submit the transaction hash.</p><code>${esc(BTC_ADDRESS)}</code><p class="small">Bitcoin payments are manually verified by the site admin.</p>${btcForm}</section></div></div><div class="card info-card"><h2>What you get</h2><div class="check-grid"><span>✓ 30 days of private access</span><span>✓ Exclusive photos and videos</span><span>✓ Private member feed</span><span>✓ Likes and comments</span></div></div><script>const prices={USD:'$10.00 USD',GBP:'£10 USD equivalent at checkout',EUR:'€10 USD equivalent at checkout'};const sel=document.getElementById('currency');const price=document.getElementById('price');sel.addEventListener('change',()=>{price.textContent=prices[sel.value]||'';});async function pay(button){button.disabled=true;button.textContent='Connecting to Flutterwave…';try{const currency=sel.value;const r=await fetch('/api/flutterwave/init',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':${JSON.stringify(csrfToken(req))}},body:JSON.stringify({currency})});const j=await r.json();if(j.authorization_url)location.href=j.authorization_url;else alert(j.error||'Flutterwave is not configured yet.');}catch(e){alert('Could not connect to the payment service.');}finally{button.disabled=false;button.textContent='Pay with Flutterwave';}}</script>`;
     res.send(page('Join', body, req));
   } catch (e) { next(e); }
 });
@@ -372,23 +338,45 @@ app.post('/btc-submit', requireLogin, verifyCsrf, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+async function getFlutterwaveAmount(currency) {
+  if (!FLW_CURRENCIES.includes(currency)) throw new Error('Unsupported currency');
+  if (currency === 'USD') return Number(FLW_USD_AMOUNT.toFixed(2));
+  const fallback = currency === 'GBP' ? FLW_GBP_FALLBACK : FLW_EUR_FALLBACK;
+  try {
+    const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currency}`);
+    const j = await r.json();
+    const rate = Number(j?.rates?.[currency]);
+    if (r.ok && Number.isFinite(rate) && rate > 0) return Number((FLW_USD_AMOUNT * rate).toFixed(2));
+  } catch (_) {}
+  return Number(fallback.toFixed(2));
+}
+
 app.post('/api/flutterwave/init', requireLogin, verifyCsrf, async (req, res) => {
   if (!FLW_SECRET_KEY) return res.status(503).json({ error: 'Flutterwave secret key has not been configured on the server yet.' });
   if (!supabase) return res.status(503).json({ error: 'Database is not configured yet.' });
-  const currency = String(req.body.currency || 'USD').toUpperCase();
-  const amount = membershipAmount(currency);
-  if (!amount) return res.status(400).json({ error: 'Please choose USD, GBP, or EUR.' });
-  const reference = `RP-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  const currency = String(req.body?.currency || 'USD').toUpperCase();
+  if (!FLW_CURRENCIES.includes(currency)) return res.status(400).json({ error: 'Please choose USD, GBP, or EUR.' });
+  const reference = `RP-FLW-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   try {
-    const redirect_url = `${publicBaseUrl(req)}/flutterwave/callback`;
+    const amount = await getFlutterwaveAmount(currency);
+    const callback_url = `${publicBaseUrl(req)}/flutterwave/callback`;
     const r = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
       headers: { Authorization: `Bearer ${FLW_SECRET_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tx_ref: reference, amount: amount / 100, currency, redirect_url, customer: { email: req.currentUser.email }, customizations: { title: 'Ruby Parker Membership', description: '30-day Ruby Parker membership' }, meta: { product: 'Ruby Parker 30-day membership', user_id: req.currentUser.id } })
+      body: JSON.stringify({
+        tx_ref: reference,
+        amount,
+        currency,
+        redirect_url: callback_url,
+        customer: { email: req.currentUser.email },
+        customizations: { title: 'Ruby Parker Membership', description: '30-day membership' },
+        meta: { product: 'Ruby Parker 30-day membership', user_id: req.currentUser.id }
+      })
     });
     const j = await r.json();
     if (!r.ok || j.status !== 'success' || !j.data?.link) return res.status(400).json({ error: j.message || 'Flutterwave initialization failed' });
-    const { error } = await supabase.from('payments').insert({ user_id: req.currentUser.id, provider: 'flutterwave', reference, amount, currency, status: 'initialized', created_at: new Date().toISOString() });
+    const storedMinor = Math.round(amount * 100);
+    const { error } = await supabase.from('payments').insert({ user_id: req.currentUser.id, provider: 'flutterwave', reference, amount: storedMinor, currency, status: 'initialized', created_at: new Date().toISOString() });
     if (error) throw error;
     res.json({ authorization_url: j.data.link });
   } catch (e) { console.error('Flutterwave init error:', e); res.status(500).json({ error: 'Payment service error' }); }
@@ -397,7 +385,8 @@ app.post('/api/flutterwave/init', requireLogin, verifyCsrf, async (req, res) => 
 app.get('/flutterwave/callback', async (req, res, next) => {
   const ref = String(req.query.tx_ref || '');
   const transactionId = String(req.query.transaction_id || '');
-  if (!ref || !transactionId) return res.redirect('/join');
+  const status = String(req.query.status || '').toLowerCase();
+  if (!ref || !transactionId || status !== 'successful') return res.status(400).send(page('Payment', flash('The payment was not completed successfully.'), req));
   if (!FLW_SECRET_KEY) return res.status(503).send(page('Payment', flash('Flutterwave is not configured on the server.'), req));
   try {
     const { data: payment, error: paymentError } = await supabase.from('payments').select('*').eq('reference', ref).maybeSingle();
@@ -406,12 +395,12 @@ app.get('/flutterwave/callback', async (req, res, next) => {
     if (payment.status === 'verified') { req.session.userId = payment.user_id; return res.redirect('/account'); }
     const r = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`, { headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` } });
     const j = await r.json();
-    const data = j.data || {};
+    const paid = j?.data;
     const expectedAmount = Number(payment.amount) / 100;
-    const success = Boolean(j.status === 'success' && data.status === 'successful' && String(data.tx_ref || '') === ref && String(data.currency || '').toUpperCase() === String(payment.currency).toUpperCase() && Number(data.amount || 0) >= expectedAmount);
-    if (!success) return res.status(400).send(page('Payment', flash('Payment was not verified as successful. No membership was activated.'), req));
+    const success = Boolean(j.status === 'success' && paid && paid.status === 'successful' && String(paid.tx_ref || '') === ref && String(paid.currency || '').toUpperCase() === String(payment.currency || '').toUpperCase() && Number(paid.amount) >= expectedAmount);
+    if (!success) return res.status(400).send(page('Payment', flash('Payment was not verified as successful.'), req));
     const exp = await extendMembership(payment.user_id, 30);
-    const { error: updateError } = await supabase.from('payments').update({ status: 'verified', transaction_id: transactionId }).eq('id', payment.id).eq('status', 'initialized');
+    const { error: updateError } = await supabase.from('payments').update({ status: 'verified' }).eq('id', payment.id);
     if (updateError) throw updateError;
     const user = await getUserById(payment.user_id);
     await sendEmail(user?.email, `${SITE_NAME} — membership active`, `<h2>Your membership is active 💗</h2><p>Your 30-day ${esc(SITE_NAME)} membership is active until ${esc(exp.toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/feed">Open your private feed</a></p>`);
@@ -488,8 +477,8 @@ app.get('/admin', requireAdmin, async (req, res, next) => {
     if (usersError) throw usersError; if (btcError) throw btcError; if (postsError) throw postsError; if (paymentsError) throw paymentsError;
     const activeUsers = (users || []).filter(activeMember).length;
     const verifiedPayments = (payments || []).filter(p => p.status === 'verified').length;
-    const revenueByCurrency = SUPPORTED_CURRENCIES.map(c => { const total = (payments || []).filter(p => p.status === 'verified' && p.currency === c).reduce((sum, p) => sum + Number(p.amount || 0), 0); return `${money(total, c)} ${c}`; }).join(' · ');
-    const stats = `<div class="stats-grid"><div class="stat"><span>Members</span><strong>${users?.length || 0}</strong></div><div class="stat"><span>Active</span><strong>${activeUsers}</strong></div><div class="stat"><span>Posts</span><strong>${posts?.length || 0}</strong></div><div class="stat"><span>Verified payments</span><strong>${verifiedPayments}</strong><small>${esc(revenueByCurrency)}</small></div></div>`;
+    const revenue = (payments || []).filter(p => p.status === 'verified').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const stats = `<div class="stats-grid"><div class="stat"><span>Members</span><strong>${users?.length || 0}</strong></div><div class="stat"><span>Active</span><strong>${activeUsers}</strong></div><div class="stat"><span>Posts</span><strong>${posts?.length || 0}</strong></div><div class="stat"><span>Verified payments</span><strong>${verifiedPayments}</strong><small>Multiple currencies</small></div></div>`;
     const btcHtml = (btc || []).map(x => `<div class="row"><span><strong>${esc(x.users?.email || 'Unknown')}</strong><br><code>${esc(x.tx_hash)}</code><br><small>${esc(x.amount_note || '')} · ${formatDate(x.created_at)}</small></span>${x.status === 'pending' ? `<form method="post" action="/admin/btc/${x.id}/approve">${csrfField(req)}<button class="button">Approve 30 days</button></form>` : `<span class="status">${esc(x.status)}</span>`}</div>`).join('') || '<p>No BTC submissions.</p>';
     const postsHtml = (posts || []).map(x => `<div class="row"><span>${esc(x.caption || '(No caption)')}<br><small>${formatDate(x.created_at)}</small></span><form method="post" action="/admin/posts/${x.id}/delete">${csrfField(req)}<button class="danger-button" onclick="return confirm('Delete this post?')">Delete</button></form></div>`).join('') || '<p>No posts yet.</p>';
     const usersHtml = (users || []).map(x => `<div class="row"><span>${esc(x.email)}<br><small>Joined ${formatDate(x.created_at)}</small></span><span>${x.is_admin ? 'admin' : (x.membership_expires_at ? `expires ${new Date(x.membership_expires_at).toLocaleDateString()}` : 'not active')}</span></div>`).join('') || '<p>No members.</p>';
