@@ -1,54 +1,54 @@
 # Ruby Parker
 
-A creator membership website with a private member area, 30-day memberships, Paystack, Bitcoin verification, Supabase persistence/storage, likes, comments, account management, admin tools and optional email notifications.
+Ruby Parker is a creator membership website with a private member area, 30-day memberships, Supabase persistence/storage, Flutterwave checkout, Bitcoin payment submissions, likes, comments, account management and admin tools.
 
-## Included
-- Professional responsive homepage and Ruby Parker branding
-- Member registration/login and protected sessions
-- Member account page with membership status and payment history
-- 30-day Paystack membership with server-side verification
-- Bitcoin transaction submission with admin approval
-- Private Supabase Storage for photos/videos with signed URLs
-- Private feed with likes, comments and image lightbox
-- Admin dashboard with member/payment/post statistics
-- Post deletion and Bitcoin approval
-- Data backup export from the admin dashboard
-- Optional SMTP welcome/payment/expiry reminder emails
-- Login/registration rate limiting and CSRF protection
+## Current payment setup
+
+- Online checkout: Flutterwave
+- Supported checkout currencies: **USD, GBP, EUR only**
+- Membership price: **US$10 equivalent for 30 days**
+- Bitcoin: manual verification remains available
+- Naira/NGN is not offered by the website
+
+The GBP and EUR equivalents are controlled by `FLW_GBP_PER_USD` and `FLW_EUR_PER_USD` so they can be updated without changing application code.
+
+## Theme system
+
+Users can choose:
+
+- Light — white-first Ruby Parker design with pink and sky-blue accents
+- Dark — dark version with the same pink/blue brand accents
+- System — follows the device's light/dark preference
+
+The selected theme is stored in the browser with local storage.
 
 ## Render environment variables
 
 Required:
-- SITE_NAME
-- ADMIN_EMAIL
-- ADMIN_PASSWORD
-- SESSION_SECRET
-- SUPABASE_URL
-- SUPABASE_SECRET_KEY
-- SUPABASE_BUCKET=ruby-content
-- BTC_ADDRESS
-- PAYSTACK_PUBLIC_KEY
-- PAYSTACK_SECRET_KEY
-- PAYSTACK_CURRENCY=USD
-- PAYSTACK_AMOUNT=1000
-- PAYSTACK_DISPLAY_PRICE=$10
 
-Optional:
-- BASE_URL
-- MAX_UPLOAD_MB=100
-- SMTP_HOST
-- SMTP_PORT=587
-- SMTP_SECURE=false
-- SMTP_USER
-- SMTP_PASS
-- MAIL_FROM
+- `SITE_NAME`
+- `BASE_URL`
+- `SESSION_SECRET`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `BTC_ADDRESS`
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+- `SUPABASE_BUCKET=ruby-content`
+- `FLW_SECRET_KEY`
 
-Never put the Supabase secret key, Paystack secret key, SMTP password, admin password, or session secret in GitHub or browser code.
+Currency conversion controls:
 
-## Supabase update
+- `FLW_GBP_PER_USD=0.75`
+- `FLW_EUR_PER_USD=0.85`
 
-After deploying this version, run the complete `schema.sql` in Supabase SQL Editor. The new `post_likes` and `comments` tables are required for the feed's social features.
+Optional email variables:
 
-## Backups
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `MAIL_FROM`
 
-The Admin dashboard includes a data export. Keep regular copies of that export and your Supabase Storage content. The JSON export covers database records; it does not download the actual media files.
+Do not put the Supabase secret key, Flutterwave secret key, SMTP password, admin password, or session secret in GitHub or browser code.

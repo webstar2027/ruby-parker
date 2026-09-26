@@ -22,8 +22,9 @@ create table if not exists public.payments (
   provider text not null,
   reference text unique,
   amount integer not null,
-  currency text not null default 'NGN',
+  currency text not null default 'USD',
   status text not null,
+  transaction_id text,
   created_at timestamptz not null default now()
 );
 
@@ -35,6 +36,9 @@ create table if not exists public.btc_submissions (
   status text not null default 'pending',
   created_at timestamptz not null default now()
 );
+
+alter table public.payments add column if not exists transaction_id text;
+alter table public.payments alter column currency set default 'USD';
 
 alter table public.users enable row level security;
 alter table public.posts enable row level security;
