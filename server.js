@@ -20,7 +20,7 @@ const FLW_USD_AMOUNT = Number(process.env.FLW_USD_AMOUNT || 10);
 const FLW_GBP_FALLBACK = Number(process.env.FLW_GBP_FALLBACK || 8.0);
 const FLW_EUR_FALLBACK = Number(process.env.FLW_EUR_FALLBACK || 8.5);
 const FLW_CURRENCIES = ['USD', 'GBP', 'EUR'];
-const FLW_DISPLAY_PRICE = '$10 USD equivalent';
+const FLW_DISPLAY_PRICE = '10 USD';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || '';
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || 'ruby-content';
@@ -109,7 +109,7 @@ function page(title, body, req) {
 <body>
   <header>
     <a class="brand" href="/"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></a>
-    <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')">☰</button>
+    <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')"></button>
     <nav>${nav}</nav>
   </header>
   <main>${body}</main>
@@ -229,14 +229,14 @@ app.get('/', async (req, res, next) => {
         <h1>Welcome to ${esc(SITE_NAME)}.</h1>
         <p class="lead">A private space for exclusive photos, videos, updates and members-only content.</p>
         <div class="actions"><a class="button" href="/join">Join for ${esc(FLW_DISPLAY_PRICE)}</a>${accountButton}</div>
-        <div class="trust-row"><span>🔒 Private members area</span><span>📱 Mobile friendly</span><span>💳 Secure checkout</span></div>
+        <div class="trust-row"><span>Private members area</span><span>Mobile friendly</span><span>Secure checkout</span></div>
       </div>
       <div class="hero-card"><img class="hero-logo" src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker logo"><p>30 days of private access</p><strong>${esc(FLW_DISPLAY_PRICE)}</strong></div>
     </section>
     <section class="feature-grid">
-      <div class="feature"><span>📸</span><h3>Exclusive content</h3><p>Private posts available to active members.</p></div>
-      <div class="feature"><span>💗</span><h3>Member community</h3><p>Like and comment on posts inside your private feed.</p></div>
-      <div class="feature"><span>🔐</span><h3>Protected access</h3><p>Your membership and content are checked on the server.</p></div>
+      <div class="feature"><h3>Exclusive content</h3><p>Private posts available to active members.</p></div>
+      <div class="feature"><h3>Member community</h3><p>Like and comment on posts inside your private feed.</p></div>
+      <div class="feature"><h3>Protected access</h3><p>Your membership and content are checked on the server.</p></div>
     </section>`;
     res.send(page('Home', body, req));
   } catch (e) { next(e); }
@@ -260,13 +260,13 @@ app.post('/register', registerLimiter, verifyCsrf, async (req, res, next) => {
     const { data, error } = await supabase.from('users').insert({ email, password_hash: bcrypt.hashSync(password, 12), is_admin: false, created_at: new Date().toISOString() }).select('id').single();
     if (error) throw error;
     req.session.userId = data.id;
-    await sendEmail(email, `${SITE_NAME} — welcome`, `<h2>Welcome to ${esc(SITE_NAME)} 💗</h2><p>Your account has been created. Complete your membership payment to unlock the private feed.</p><p><a href="${esc(publicBaseUrl(req))}/join">Complete membership</a></p>`);
+    await sendEmail(email, `${SITE_NAME} — welcome`, `<h2>Welcome to ${esc(SITE_NAME)}</h2><p>Your account has been created. Complete your membership payment to unlock the private feed.</p><p><a href="${esc(publicBaseUrl(req))}/join">Complete membership</a></p>`);
     res.redirect('/welcome');
   } catch (e) { next(e); }
 });
 
 app.get('/welcome', requireLogin, async (req, res) => {
-  res.send(page('Welcome', `<div class="card narrow center"><div class="welcome-logo"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></div><span class="eyebrow">WELCOME</span><h1>Welcome to ${esc(SITE_NAME)} 💗</h1><p>Your account is ready. Choose your payment method to activate 30 days of private access.</p><a class="button" href="/join">Activate membership</a></div>`, req));
+  res.send(page('Welcome', `<div class="card narrow center"><div class="welcome-logo"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></div><span class="eyebrow">WELCOME</span><h1>Welcome to ${esc(SITE_NAME)}</h1><p>Your account is ready. Choose your payment method to activate 30 days of private access.</p><a class="button" href="/join">Activate membership</a></div>`, req));
 });
 
 app.get('/login', async (req, res, next) => {
@@ -302,7 +302,7 @@ app.get('/account', requireLogin, async (req, res, next) => {
     const btcHtml = (btc || []).map(p => `<div class="row"><span><strong>Bitcoin</strong><br><small>${esc(p.tx_hash.slice(0, 16))}… · ${formatDate(p.created_at)}</small></span><span>${esc(p.status)}</span></div>`).join('') || '<p>No Bitcoin submissions yet.</p>';
     const memberAction = activeMember(req.currentUser) ? `<a class="button" href="/feed">Open private feed</a>` : `<a class="button" href="/join">Activate membership</a>`;
     const expiry = req.currentUser.membership_expires_at ? new Date(req.currentUser.membership_expires_at).toLocaleString() : 'Not active';
-    res.send(page('My Account', `<div class="account-grid"><section class="card"><span class="eyebrow">MY ACCOUNT</span><h1>Hi, ${esc(req.currentUser.email.split('@')[0])} 💗</h1><div class="status ${activeMember(req.currentUser) ? 'active' : ''}">${esc(membershipLabel(req.currentUser))}</div><p><strong>Email</strong><br>${esc(req.currentUser.email)}</p><p><strong>Membership</strong><br>${esc(expiry)}</p><div class="actions">${memberAction}<a class="button ghost" href="/join">Renew</a></div></section><section class="card"><h2>Change password</h2><form method="post" action="/account/password">${csrfField(req)}<label>Current password<input name="current_password" type="password" required></label><label>New password<input name="new_password" type="password" minlength="8" required></label><button class="button">Update password</button></form></section></div><div class="card"><h2>Payment history</h2>${paymentsHtml}</div><div class="card"><h2>Bitcoin submissions</h2>${btcHtml}</div>`, req));
+    res.send(page('My Account', `<div class="account-grid"><section class="card"><span class="eyebrow">MY ACCOUNT</span><h1>Hi, ${esc(req.currentUser.email.split('@')[0])}</h1><div class="status ${activeMember(req.currentUser) ? 'active' : ''}">${esc(membershipLabel(req.currentUser))}</div><p><strong>Email</strong><br>${esc(req.currentUser.email)}</p><p><strong>Membership</strong><br>${esc(expiry)}</p><div class="actions">${memberAction}<a class="button ghost" href="/join">Renew</a></div></section><section class="card"><h2>Change password</h2><form method="post" action="/account/password">${csrfField(req)}<label>Current password<input name="current_password" type="password" required></label><label>New password<input name="new_password" type="password" minlength="8" required></label><button class="button">Update password</button></form></section></div><div class="card"><h2>Payment history</h2>${paymentsHtml}</div><div class="card"><h2>Bitcoin submissions</h2>${btcHtml}</div>`, req));
   } catch (e) { next(e); }
 });
 
@@ -321,9 +321,9 @@ app.get('/join', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
     const u = req.currentUser;
-    const payButton = u ? `<div class="currency-picker"><label for="currency">Currency</label><select id="currency"><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select><p id="price" class="price-preview">$10.00 USD</p><button class="button" onclick="pay(this)">Pay with Flutterwave</button></div>` : '<a class="button" href="/login">Log in to pay</a>';
+    const payButton = u ? `<div class="currency-picker"><label for="currency">Currency</label><select id="currency"><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select><p id="price" class="price-preview">10 USD</p><button class="button" onclick="pay(this)">Pay with Flutterwave</button></div>` : '<a class="button" href="/login">Log in to pay</a>';
     const btcForm = u ? `<form method="post" action="/btc-submit">${csrfField(req)}<input name="tx_hash" placeholder="Bitcoin transaction hash" required><input name="amount_note" placeholder="Amount sent (optional)"><button class="button">Submit BTC payment</button></form>` : '<a href="/login">Log in to submit payment</a>';
-    const body = `<div class="card"><span class="eyebrow">MEMBERSHIP</span><h1>${esc(FLW_DISPLAY_PRICE)} for 30 days</h1><p>Choose a payment method below. Your membership is activated only after successful verification.</p><div class="pay-grid"><section><div class="payment-icon">💳</div><h2>Pay with Flutterwave</h2><p>Secure online checkout. Choose USD, GBP, or EUR.</p>${payButton}</section><section><div class="payment-icon">₿</div><h2>Pay with Bitcoin</h2><p>Send the $10 equivalent in BTC to this address, then submit the transaction hash.</p><code>${esc(BTC_ADDRESS)}</code><p class="small">Bitcoin payments are manually verified by the site admin.</p>${btcForm}</section></div></div><div class="card info-card"><h2>What you get</h2><div class="check-grid"><span>✓ 30 days of private access</span><span>✓ Exclusive photos and videos</span><span>✓ Private member feed</span><span>✓ Likes and comments</span></div></div><script>const prices={USD:'$10.00 USD',GBP:'£10 USD equivalent at checkout',EUR:'€10 USD equivalent at checkout'};const sel=document.getElementById('currency');const price=document.getElementById('price');sel.addEventListener('change',()=>{price.textContent=prices[sel.value]||'';});async function pay(button){button.disabled=true;button.textContent='Connecting to Flutterwave…';try{const currency=sel.value;const r=await fetch('/api/flutterwave/init',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':${JSON.stringify(csrfToken(req))}},body:JSON.stringify({currency})});const j=await r.json();if(j.authorization_url)location.href=j.authorization_url;else alert(j.error||'Flutterwave is not configured yet.');}catch(e){alert('Could not connect to the payment service.');}finally{button.disabled=false;button.textContent='Pay with Flutterwave';}}</script>`;
+    const body = `<div class="card"><span class="eyebrow">MEMBERSHIP</span><h1>${esc(FLW_DISPLAY_PRICE)} for 30 days</h1><p>Choose a payment method below. Your membership is activated only after successful verification.</p><div class="pay-grid"><section><h2>Pay with Flutterwave</h2><p>Secure online checkout. Choose USD, GBP, or EUR.</p>${payButton}</section><section><div class="payment-icon">₿</div><h2>Pay with Bitcoin</h2><p>Send 10 USD worth of BTC to this address, then submit the transaction hash.</p><code>${esc(BTC_ADDRESS)}</code><p class="small">Bitcoin payments are manually verified by the site admin.</p>${btcForm}</section></div></div><div class="card info-card"><h2>What you get</h2><div class="check-grid"><span> 30 days of private access</span><span> Exclusive photos and videos</span><span> Private member feed</span><span> Likes and comments</span></div></div><script>const prices={USD:'10 USD',GBP:'GBP — converted at checkout',EUR:'EUR — converted at checkout'};const sel=document.getElementById('currency');const price=document.getElementById('price');sel.addEventListener('change',()=>{price.textContent=prices[sel.value]||'';});async function pay(button){button.disabled=true;button.textContent='Connecting to Flutterwave…';try{const currency=sel.value;const r=await fetch('/api/flutterwave/init',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token':${JSON.stringify(csrfToken(req))}},body:JSON.stringify({currency})});const j=await r.json();if(j.authorization_url)location.href=j.authorization_url;else alert(j.error||'Flutterwave is not configured yet.');}catch(e){alert('Could not connect to the payment service.');}finally{button.disabled=false;button.textContent='Pay with Flutterwave';}}</script>`;
     res.send(page('Join', body, req));
   } catch (e) { next(e); }
 });
@@ -334,7 +334,7 @@ app.post('/btc-submit', requireLogin, verifyCsrf, async (req, res, next) => {
     if (tx.length < 20) return res.status(400).send(page('Bitcoin', flash('Please enter the transaction hash.'), req));
     const { error } = await supabase.from('btc_submissions').insert({ user_id: req.currentUser.id, tx_hash: tx, amount_note: String(req.body.amount_note || '').slice(0, 200), status: 'pending', created_at: new Date().toISOString() });
     if (error) throw error;
-    res.send(page('Bitcoin submitted', `<div class="card narrow center"><div class="success-icon">✓</div><h1>Payment submitted</h1><p>Your Bitcoin transaction was submitted for review. Membership will activate after verification.</p><a class="button" href="/account">View my account</a></div>`, req));
+    res.send(page('Bitcoin submitted', `<div class="card narrow center"><div class="success-icon"></div><h1>Payment submitted</h1><p>Your Bitcoin transaction was submitted for review. Membership will activate after verification.</p><a class="button" href="/account">View my account</a></div>`, req));
   } catch (e) { next(e); }
 });
 
@@ -403,7 +403,7 @@ app.get('/flutterwave/callback', async (req, res, next) => {
     const { error: updateError } = await supabase.from('payments').update({ status: 'verified' }).eq('id', payment.id);
     if (updateError) throw updateError;
     const user = await getUserById(payment.user_id);
-    await sendEmail(user?.email, `${SITE_NAME} — membership active`, `<h2>Your membership is active 💗</h2><p>Your 30-day ${esc(SITE_NAME)} membership is active until ${esc(exp.toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/feed">Open your private feed</a></p>`);
+    await sendEmail(user?.email, `${SITE_NAME} — membership active`, `<h2>Your membership is active</h2><p>Your 30-day ${esc(SITE_NAME)} membership is active until ${esc(exp.toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/feed">Open your private feed</a></p>`);
     req.session.userId = payment.user_id;
     res.redirect('/account');
   } catch (e) { next(e); }
@@ -428,9 +428,9 @@ app.get('/feed', requireMember, async (req, res, next) => {
       const media = p.storage_path ? (isVideo ? `<video controls preload="metadata" src="/media/${encodeURIComponent(p.id)}"></video>` : `<img class="lightbox-trigger" loading="lazy" src="/media/${encodeURIComponent(p.id)}" alt="Ruby Parker post">`) : '';
       const cs = commentMap[p.id] || [];
       const commentsHtml = cs.map(c => `<div class="comment"><strong>${esc((c.users?.email || 'Member').split('@')[0])}</strong><span>${esc(c.body)}</span><small>${formatDate(c.created_at)}</small></div>`).join('') || '<p class="small">Be the first to comment.</p>';
-      return `<article class="post" id="post-${p.id}">${media}<div class="post-body"><p>${esc(p.caption)}</p><small>${formatDate(p.created_at)}</small><div class="post-actions"><form method="post" action="/posts/${p.id}/like">${csrfField(req)}<button class="like-button ${likedByMe[p.id] ? 'liked' : ''}">${likedByMe[p.id] ? '♥' : '♡'} ${likeCounts[p.id] || 0}</button></form><button type="button" class="comment-toggle" onclick="this.closest('.post').querySelector('.comments').classList.toggle('open')">💬 ${cs.length}</button></div><div class="comments open"><div class="comment-list">${commentsHtml}</div><form method="post" action="/posts/${p.id}/comments" class="comment-form">${csrfField(req)}<input name="body" maxlength="500" placeholder="Write a comment…" required><button class="button">Post</button></form></div></div></article>`;
+      return `<article class="post" id="post-${p.id}">${media}<div class="post-body"><p>${esc(p.caption)}</p><small>${formatDate(p.created_at)}</small><div class="post-actions"><form method="post" action="/posts/${p.id}/like">${csrfField(req)}<button class="like-button ${likedByMe[p.id] ? 'liked' : ''}">Like ${likeCounts[p.id] || 0}</button></form><button type="button" class="comment-toggle" onclick="this.closest('.post').querySelector('.comments').classList.toggle('open')">Comments ${cs.length}</button></div><div class="comments open"><div class="comment-list">${commentsHtml}</div><form method="post" action="/posts/${p.id}/comments" class="comment-form">${csrfField(req)}<input name="body" maxlength="500" placeholder="Write a comment…" required><button class="button">Post</button></form></div></div></article>`;
     }).join('') : '<div class="card center"><h2>Your private feed is ready.</h2><p>No posts yet. New content will appear here when it is published.</p></div>';
-    res.send(page('Private Feed', `<div class="feed-head"><div><span class="eyebrow">MEMBERS ONLY</span><h1>Private feed</h1><p>Welcome back, ${esc(req.currentUser.email.split('@')[0])} 💗</p></div><div class="status active">${esc(membershipLabel(req.currentUser))}</div></div><div class="posts">${cards}</div>`, req));
+    res.send(page('Private Feed', `<div class="feed-head"><div><span class="eyebrow">MEMBERS ONLY</span><h1>Private feed</h1><p>Welcome back, ${esc(req.currentUser.email.split('@')[0])}</p></div><div class="status active">${esc(membershipLabel(req.currentUser))}</div></div><div class="posts">${cards}</div>`, req));
   } catch (e) { next(e); }
 });
 
@@ -483,7 +483,7 @@ app.get('/admin', requireAdmin, async (req, res, next) => {
     const postsHtml = (posts || []).map(x => `<div class="row"><span>${esc(x.caption || '(No caption)')}<br><small>${formatDate(x.created_at)}</small></span><form method="post" action="/admin/posts/${x.id}/delete">${csrfField(req)}<button class="danger-button" onclick="return confirm('Delete this post?')">Delete</button></form></div>`).join('') || '<p>No posts yet.</p>';
     const usersHtml = (users || []).map(x => `<div class="row"><span>${esc(x.email)}<br><small>Joined ${formatDate(x.created_at)}</small></span><span>${x.is_admin ? 'admin' : (x.membership_expires_at ? `expires ${new Date(x.membership_expires_at).toLocaleDateString()}` : 'not active')}</span></div>`).join('') || '<p>No members.</p>';
     const paymentHtml = (payments || []).map(x => `<div class="row"><span><strong>${esc(x.users?.email || 'Unknown')}</strong><br><small>${esc(x.provider)} · ${formatDate(x.created_at)}</small></span><span>${esc(money(x.amount, x.currency))}<br><small>${esc(x.status)}</small></span></div>`).join('') || '<p>No payments yet.</p>';
-    const body = `<div class="admin-head"><div><span class="eyebrow">OWNER AREA</span><h1>Admin dashboard</h1><p>Manage content, memberships and payment requests.</p></div><div class="actions"><a class="button ghost" href="/admin/backup">Download data backup</a><a class="button ghost" href="/admin/expiry-reminders">Send expiry reminders</a></div></div>${stats}<div class="card"><h2>Publish new content</h2><form method="post" action="/admin/posts" enctype="multipart/form-data">${csrfField(req)}<label>Caption<textarea name="caption" rows="4" maxlength="2000" placeholder="Write a caption…"></textarea></label><label>Photo/video<input type="file" name="media" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime" required><small>Maximum ${MAX_UPLOAD_MB} MB.</small></label><button class="button">Publish post</button></form></div><div class="card"><h2>Bitcoin submissions</h2>${btcHtml}</div><div class="card"><h2>Published posts</h2>${postsHtml}</div><div class="card"><h2>Members</h2>${usersHtml}</div><div class="card"><h2>Recent payments</h2>${paymentHtml}</div>`;
+    const body = `<div class="admin-head"><div><span class="eyebrow">OWNER AREA</span><h1>Admin dashboard</h1><p>Manage content, memberships and payment requests.</p></div><div class="actions"><a class="button ghost" href="/admin/backup">Download data backup</a></div></div>${stats}<div class="card"><h2>Publish new content</h2><form method="post" action="/admin/posts" enctype="multipart/form-data">${csrfField(req)}<label>Caption<textarea name="caption" rows="4" maxlength="2000" placeholder="Write a caption…"></textarea></label><label>Photo/video<input type="file" name="media" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime" required><small>Maximum ${MAX_UPLOAD_MB} MB.</small></label><button class="button">Publish post</button></form></div><div class="card"><h2>Bitcoin submissions</h2>${btcHtml}</div><div class="card"><h2>Published posts</h2>${postsHtml}</div><div class="card"><h2>Members</h2>${usersHtml}</div><div class="card"><h2>Recent payments</h2>${paymentHtml}</div>`;
     res.send(page('Admin', body, req));
   } catch (e) { next(e); }
 });
@@ -526,7 +526,7 @@ app.post('/admin/btc/:id/approve', requireAdmin, verifyCsrf, async (req, res, ne
       const { error: btcError } = await supabase.from('btc_submissions').update({ status: 'approved' }).eq('id', s.id);
       if (btcError) throw btcError;
       const user = await getUserById(s.user_id);
-      await sendEmail(user?.email, `${SITE_NAME} — membership approved`, `<h2>Your membership is active 💗</h2><p>Your 30-day membership is active until ${esc(exp.toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/feed">Open your private feed</a></p>`);
+      await sendEmail(user?.email, `${SITE_NAME} — membership approved`, `<h2>Your membership is active</h2><p>Your 30-day membership is active until ${esc(exp.toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/feed">Open your private feed</a></p>`);
     }
     res.redirect('/admin');
   } catch (e) { next(e); }
@@ -546,18 +546,6 @@ app.get('/admin/backup', requireAdmin, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="ruby-parker-backup-${new Date().toISOString().slice(0,10)}.json"`);
     res.send(JSON.stringify(backup, null, 2));
-  } catch (e) { next(e); }
-});
-
-app.get('/admin/expiry-reminders', requireAdmin, async (req, res, next) => {
-  try {
-    const until = new Date(); until.setDate(until.getDate() + 3);
-    const { data: users, error } = await supabase.from('users').select('id,email,membership_expires_at').not('membership_expires_at', 'is', null).gte('membership_expires_at', new Date().toISOString()).lte('membership_expires_at', until.toISOString());
-    if (error) throw error;
-    let sent = 0;
-    if (mailer) for (const u of users || []) { const ok = await sendEmail(u.email, `${SITE_NAME} — membership reminder`, `<h2>Your membership expires soon 💗</h2><p>Your membership expires on ${esc(new Date(u.membership_expires_at).toLocaleString())}.</p><p><a href="${esc(publicBaseUrl(req))}/join">Renew membership</a></p>`); if (ok) sent++; }
-    const message = mailer ? `Expiry reminders sent: ${sent}.` : 'Email is not configured yet. Add SMTP settings in Render to enable reminders.';
-    res.send(page('Expiry reminders', `<div class="card narrow center"><h1>Expiry reminders</h1><p>${esc(message)}</p><a class="button" href="/admin">Back to admin</a></div>`, req));
   } catch (e) { next(e); }
 });
 

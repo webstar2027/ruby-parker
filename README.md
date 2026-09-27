@@ -13,7 +13,7 @@ A creator membership website with a private member area, 30-day memberships, Flu
 - Admin dashboard with member/payment/post statistics
 - Post deletion and Bitcoin approval
 - Data backup export from the admin dashboard
-- Optional SMTP welcome/payment/expiry reminder emails
+- Optional SMTP welcome/payment emails
 - Login/registration rate limiting and CSRF protection
 
 ## Render environment variables
