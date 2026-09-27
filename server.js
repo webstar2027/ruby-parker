@@ -117,12 +117,24 @@ function page(title, body, req) {
   <script>
     document.addEventListener('click', function(e){
       const img = e.target.closest('.lightbox-trigger');
-      if (!img) return;
-      const overlay = document.createElement('div');
-      overlay.className = 'lightbox';
-      overlay.innerHTML = '<button aria-label="Close">×</button><img src="' + img.src + '" alt="">';
-      overlay.addEventListener('click', function(){ overlay.remove(); });
-      document.body.appendChild(overlay);
+      if (img) {
+        const overlay = document.createElement('div');
+        overlay.className = 'lightbox';
+        overlay.innerHTML = '<button aria-label="Close">×</button><img src="' + img.src + '" alt="">';
+        overlay.addEventListener('click', function(){ overlay.remove(); });
+        document.body.appendChild(overlay);
+        return;
+      }
+
+      const toggle = e.target.closest('[data-password-toggle]');
+      if (!toggle) return;
+      const input = document.getElementById(toggle.dataset.passwordToggle);
+      if (!input) return;
+      const showing = input.type === 'password';
+      input.type = showing ? 'text' : 'password';
+      toggle.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+      toggle.setAttribute('aria-pressed', String(showing));
+      toggle.classList.toggle('showing', showing);
     });
   </script>
 </body>
@@ -273,7 +285,7 @@ app.get('/login', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
     const paid = req.query.paid ? flash('Payment verified. Your membership is active for 30 days.') : '';
-    res.send(page('Login', `<div class="card narrow"><span class="eyebrow">MEMBERS</span><h1>Welcome back</h1>${paid}<form method="post">${csrfField(req)}<label>Email<input name="email" type="email" autocomplete="email" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><button class="button">Log in</button></form><p>New here? <a href="/register">Create an account</a></p></div>`, req));
+    res.send(page('Login', `<div class="card narrow"><span class="eyebrow">MEMBERS</span><h1>Welcome back</h1>${paid}<form method="post">${csrfField(req)}<label>Email<input name="email" type="email" autocomplete="email" required></label><label>Password<div class="password-wrap"><input id="login-password" name="password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="login-password"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" stroke-width="1.8"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17.5 17.5 0 0 1-3.1 3.8M6.2 6.4C3.8 8.1 2.5 12 2.5 12s3.5 7 9.5 7a9.7 9.7 0 0 0 3.1-.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div></label><button class="button">Log in</button></form><p>New here? <a href="/register">Create an account</a></p></div>`, req));
   } catch (e) { next(e); }
 });
 
