@@ -95,6 +95,7 @@ function page(title, body, req) {
   const nav = u
     ? `<a href="/feed">Feed</a><a href="/account">Account</a>${u.is_admin ? '<a href="/admin">Admin</a>' : ''}<form method="post" action="/logout" class="inline">${csrfField(req)}<button>Log out</button></form>`
     : `<a href="/login">Log in</a><a class="pill" href="/join">Join</a>`;
+  const themePicker = `<label class="theme-control" aria-label="Theme"><select class="theme-select" id="theme-select"><option value="light">Bright</option><option value="dark">Dark</option><option value="system">System</option></select></label>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -110,11 +111,24 @@ function page(title, body, req) {
   <header>
     <a class="brand" href="/"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></a>
     <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')"></button>
-    <nav>${nav}</nav>
+    <nav>${nav}${themePicker}</nav>
   </header>
   <main>${body}</main>
   <footer><strong>${esc(SITE_NAME)}</strong><span>Private creator membership</span><span>© ${new Date().getFullYear()}</span></footer>
   <script>
+    (function(){
+      const select = document.getElementById('theme-select');
+      const saved = localStorage.getItem('ruby-parker-theme') || 'light';
+      document.body.dataset.theme = saved;
+      if (select) {
+        select.value = saved;
+        select.addEventListener('change', function(){
+          document.body.dataset.theme = this.value;
+          localStorage.setItem('ruby-parker-theme', this.value);
+        });
+      }
+    })();
+
     document.addEventListener('click', function(e){
       const img = e.target.closest('.lightbox-trigger');
       if (img) {
