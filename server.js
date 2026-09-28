@@ -94,8 +94,7 @@ function page(title, body, req) {
   const u = req?.currentUser || null;
   const nav = u
     ? `<a href="/feed">Feed</a><a href="/account">Account</a>${u.is_admin ? '<a href="/admin">Admin</a>' : ''}<form method="post" action="/logout" class="inline">${csrfField(req)}<button>Log out</button></form>`
-    : `<a href="/login">Log in</a><a class="pill" href="/join">Join</a>`;
-  const themePicker = `<label class="theme-control" aria-label="Theme"><select class="theme-select" id="theme-select"><option value="light">Bright</option><option value="dark">Dark</option><option value="system">System</option></select></label>`;
+    : title === 'Login' ? `<a class="pill login-create" href="/register">Create account</a>` : `<a href="/login">Log in</a><a class="pill" href="/join">Join</a>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -107,28 +106,15 @@ function page(title, body, req) {
   <title>${esc(title)} · ${esc(SITE_NAME)}</title>
   <link rel="stylesheet" href="/public/style.css">
 </head>
-<body>
+<body class="${title === 'Login' ? 'login-page' : ''}">
   <header>
     <a class="brand" href="/"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></a>
     <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')"></button>
-    <nav>${nav}${themePicker}</nav>
+    <nav>${nav}</nav>
   </header>
   <main>${body}</main>
   <footer><strong>${esc(SITE_NAME)}</strong><span>Private creator membership</span><span>© ${new Date().getFullYear()}</span></footer>
   <script>
-    (function(){
-      const select = document.getElementById('theme-select');
-      const saved = localStorage.getItem('ruby-parker-theme') || 'light';
-      document.body.dataset.theme = saved;
-      if (select) {
-        select.value = saved;
-        select.addEventListener('change', function(){
-          document.body.dataset.theme = this.value;
-          localStorage.setItem('ruby-parker-theme', this.value);
-        });
-      }
-    })();
-
     document.addEventListener('click', function(e){
       const img = e.target.closest('.lightbox-trigger');
       if (img) {
@@ -299,7 +285,7 @@ app.get('/login', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
     const paid = req.query.paid ? flash('Payment verified. Your membership is active for 30 days.') : '';
-    res.send(page('Login', `<section class="login-shell"><div class="login-intro"><span class="eyebrow">RUBY PARKER MEMBERS</span><div class="login-brand-mark"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></div><h1>Welcome back</h1><p>Sign in to your private RubyParker member account.</p><div class="login-intro-line"></div></div><div class="login-card"><span class="eyebrow">MEMBERS</span><h2>Log in to your account</h2>${paid}<form method="post" class="login-form">${csrfField(req)}<label>Email<input name="email" type="email" autocomplete="email" placeholder="Email" required></label><label>Password<div class="password-wrap"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Password" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="login-password"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" stroke-width="1.8"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17.5 17.5 0 0 1-3.1 3.8M6.2 6.4C3.8 8.1 2.5 12 2.5 12s3.5 7 9.5 7a9.7 9.7 0 0 0 3.1-.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div></label><button class="button login-submit">Log in</button></form><p class="login-signup">New to RubyParker? <a href="/register">Create an account</a></p></div></section>`, req));
+    res.send(page('Login', `<section class="login-shell login-example"><div class="login-card"><div class="login-card-logo"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></div><h2>Log in to your account</h2>${paid}<form method="post" class="login-form">${csrfField(req)}<label>Email<input name="email" type="email" autocomplete="email" placeholder="Email" required></label><label>Password<div class="password-wrap"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Password" required><button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="login-password"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" stroke-width="1.8"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 5.2A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17.5 17.5 0 0 1-3.1 3.8M6.2 6.4C3.8 8.1 2.5 12 2.5 12s3.5 7 9.5 7a9.7 9.7 0 0 0 3.1-.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div></label><button class="button login-submit">Log in</button></form><p class="login-signup">New to RubyParker? <a href="/register">Create an account</a></p></div></section>`, req));
   } catch (e) { next(e); }
 });
 
