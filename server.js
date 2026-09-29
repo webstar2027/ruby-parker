@@ -101,28 +101,59 @@ function page(title, body, req) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0d0b10">
+  <meta name="theme-color" content="#fff8fc">
   <meta name="description" content="Private Ruby Parker creator membership.">
   <title>${esc(title)} · ${esc(SITE_NAME)}</title>
   <link rel="stylesheet" href="/public/style.css">
 </head>
 <body>
-  <header>
+  <header class="glass-header">
     <a class="brand" href="/"><img src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker"></a>
-    <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')"></button>
-    <nav>${nav}</nav>
+    <div class="header-tools">
+      <nav>${nav}</nav>
+      <label class="theme-control" aria-label="Theme">
+        <span>Theme</span>
+        <select id="theme-select">
+          <option value="bright">Bright</option>
+          <option value="system">System</option>
+        </select>
+      </label>
+      <button class="menu-toggle" type="button" aria-label="Open menu" onclick="document.body.classList.toggle('menu-open')"></button>
+    </div>
   </header>
   <main>${body}</main>
   <footer><strong>${esc(SITE_NAME)}</strong><span>Private creator membership</span><span>© ${new Date().getFullYear()}</span></footer>
   <script>
+    (function(){
+      const select = document.getElementById('theme-select');
+      const stored = localStorage.getItem('ruby-parker-theme');
+      const saved = stored === 'bright' || stored === 'system' ? stored : 'bright';
+      document.documentElement.dataset.theme = saved;
+      if (select) {
+        select.value = saved;
+        select.addEventListener('change', function(){
+          document.documentElement.dataset.theme = this.value;
+          localStorage.setItem('ruby-parker-theme', this.value);
+        });
+      }
+    })();
     document.addEventListener('click', function(e){
       const img = e.target.closest('.lightbox-trigger');
       if (!img) return;
       const overlay = document.createElement('div');
       overlay.className = 'lightbox';
-      overlay.innerHTML = '<button aria-label="Close">×</button><img src="' + img.src + '" alt="">';
+      overlay.innerHTML = '<button aria-label="Close">Close</button><img src="' + img.src + '" alt="">';
       overlay.addEventListener('click', function(){ overlay.remove(); });
       document.body.appendChild(overlay);
+    });
+    document.addEventListener('click', function(e){
+      const button = e.target.closest('[data-password-toggle]');
+      if (!button) return;
+      const input = document.getElementById(button.getAttribute('data-password-toggle'));
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+      button.setAttribute('aria-label', input.type === 'password' ? 'Show password' : 'Hide password');
+      button.textContent = input.type === 'password' ? 'Show' : 'Hide';
     });
   </script>
 </body>
@@ -273,7 +304,32 @@ app.get('/login', async (req, res, next) => {
   try {
     await attachCurrentUser(req);
     const paid = req.query.paid ? flash('Payment verified. Your membership is active for 30 days.') : '';
-    res.send(page('Login', `<div class="card narrow"><span class="eyebrow">MEMBERS</span><h1>Welcome back</h1>${paid}<form method="post">${csrfField(req)}<label>Email<input name="email" type="email" autocomplete="email" required></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><button class="button">Log in</button></form><p>New here? <a href="/register">Create an account</a></p></div>`, req));
+    const loginBody = `<section class="login-shell">
+      <div class="login-welcome">
+        <img class="login-logo" src="/public/ruby-parker-logo.jpeg" alt="Ruby Parker">
+        <span class="eyebrow">RUBY PARKER MEMBERS</span>
+        <h1>Welcome back.</h1>
+        <p>Sign in to continue to your private member space.</p>
+      </div>
+      <div class="card login-card">
+        <span class="eyebrow">MEMBERS</span>
+        <h2>Log in to your account</h2>
+        ${paid}
+        <form method="post">
+          ${csrfField(req)}
+          <label>Email<input name="email" type="email" autocomplete="email" required></label>
+          <label>Password
+            <span class="password-wrap">
+              <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+              <button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="Show password">Show</button>
+            </span>
+          </label>
+          <button class="button login-button">Log in</button>
+        </form>
+        <p class="login-register">New here? <a href="/register">Create an account</a></p>
+      </div>
+    </section>`;
+    res.send(page('Login', loginBody, req));
   } catch (e) { next(e); }
 });
 
