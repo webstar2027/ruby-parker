@@ -153,7 +153,7 @@ function page(title, body, req) {
       if (!input) return;
       input.type = input.type === 'password' ? 'text' : 'password';
       button.setAttribute('aria-label', input.type === 'password' ? 'Show password' : 'Hide password');
-      button.textContent = input.type === 'password' ? 'Show' : 'Hide';
+      button.classList.toggle('is-visible', input.type === 'text');
     });
   </script>
 </body>
@@ -321,7 +321,7 @@ app.get('/login', async (req, res, next) => {
           <label>Password
             <span class="password-wrap">
               <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-              <button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="Show password">Show</button>
+              <button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="Show password"><svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg><svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 6.7A10.8 10.8 0 0 1 12 6.5c6 0 9.5 5.5 9.5 5.5a18 18 0 0 1-3.1 3.6"></path><path d="M6.1 7.6C3.8 9.2 2.5 12 2.5 12s3.5 5.5 9.5 5.5c1.5 0 2.8-.3 4-.9"></path></svg></button>
             </span>
           </label>
           <button class="button login-button">Log in</button>
